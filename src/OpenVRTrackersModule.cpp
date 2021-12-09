@@ -13,6 +13,7 @@
 
 bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder &rf)
 {
+    m_period = rf.check("period", yarp::os::Value(0.01)).asFloat64();
     m_baseFrame = rf.check("tfBaseFrameName", yarp::os::Value("openVR_origin")).asString();
 
     yarp::os::Property tfClientCfg;
@@ -40,7 +41,7 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder &rf)
 
 double OpenVRTrackersModule::getPeriod()
 {
-    return 0.01;
+    return m_period;
 }
 
 bool OpenVRTrackersModule::updateModule()

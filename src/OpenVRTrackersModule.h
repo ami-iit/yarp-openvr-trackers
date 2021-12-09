@@ -26,6 +26,7 @@ class OpenVRTrackersModule : public yarp::os::RFModule
     yarp::dev::IFrameTransform* m_tf;
     yarp::sig::Matrix m_sendBuffer;
     std::string m_baseFrame;
+    double m_period;
 
 public:
 
