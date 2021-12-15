@@ -1,3 +1,36 @@
+# ===================
+# openvr-trackers-lib
+# ===================
+
+set(LIB_TARGET_NAME openvr-trackers)
+
+set(${LIB_TARGET_NAME}_SRC
+    OpenVRTrackersDriver.cpp
+)
+
+set(${LIB_TARGET_NAME}_HDR
+    OpenVRTrackersDriver.h
+)
+
+add_library(
+    ${LIB_TARGET_NAME}
+    ${${LIB_TARGET_NAME}_SRC}
+    ${${LIB_TARGET_NAME}_HDR})
+
+target_include_directories(
+    ${LIB_TARGET_NAME}
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(
+    ${LIB_TARGET_NAME}
+    PRIVATE
+    PkgConfig::openvr)
+
+# ====================
+# yarp-openvr-trackers
+# ====================
+
 set(EXE_TARGET_NAME yarp-openvr-trackers)
 
 set(${EXE_TARGET_NAME}_SRC
