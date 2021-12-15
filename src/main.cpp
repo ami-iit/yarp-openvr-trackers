@@ -8,23 +8,23 @@
  * at your option.
  */
 
-#include <yarp/os/Network.h>
-#include <yarp/os/ResourceFinder.h>
-#include <yarp/os/LogStream.h>
 #include "OpenVRTrackersModule.h"
 
+#include <yarp/os/LogStream.h>
+#include <yarp/os/Network.h>
+#include <yarp/os/ResourceFinder.h>
 
 int main(int argc, char** argv)
 {
-    yarp::os::Network yarp; //to initialize the network
+    yarp::os::Network yarp; // to initialize the network
 
-    if (!yarp.checkNetwork())
-    {
-        yError()<<"No YARP network found.";
+    if (!yarp.checkNetwork()) {
+        yError() << "No YARP network found.";
         return EXIT_FAILURE;
     }
 
-    yarp::os::ResourceFinder& rf = yarp::os::ResourceFinder::getResourceFinderSingleton();
+    yarp::os::ResourceFinder& rf =
+        yarp::os::ResourceFinder::getResourceFinderSingleton();
     rf.configure(argc, argv);
 
     OpenVRTrackersModule module;

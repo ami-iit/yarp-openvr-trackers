@@ -8,15 +8,13 @@
  * at your option.
  */
 
-#ifndef OPENVRTRACKERSMODULE_H
-#define OPENVRTRACKERSMODULE_H
+#ifndef OPENVR_TRACKERS_MODULE_H
+#define OPENVR_TRACKERS_MODULE_H
 
-#include <yarp/os/RFModule.h>
-#include <yarp/dev/PolyDriver.h>
 #include <yarp/dev/IFrameTransform.h>
+#include <yarp/dev/PolyDriver.h>
+#include <yarp/os/RFModule.h>
 #include <yarp/sig/Matrix.h>
-
-#include <openvr.h>
 
 #include <string>
 
@@ -29,7 +27,6 @@ class OpenVRTrackersModule : public yarp::os::RFModule
     double m_period;
 
 public:
-
     virtual bool configure(yarp::os::ResourceFinder& rf) final;
 
     virtual double getPeriod() final;
@@ -39,4 +36,4 @@ public:
     virtual bool close() final;
 };
 
-#endif // OPENVRTRACKERSMODULE_H
+#endif // OPENVR_TRACKERS_MODULE_H

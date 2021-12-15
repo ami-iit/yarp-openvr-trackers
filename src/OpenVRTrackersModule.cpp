@@ -11,29 +11,33 @@
 #include "OpenVRTrackersModule.h"
 #include <yarp/os/LogStream.h>
 
-bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder &rf)
+bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
 {
     m_period = rf.check("period", yarp::os::Value(0.01)).asFloat64();
-    m_baseFrame = rf.check("tfBaseFrameName", yarp::os::Value("openVR_origin")).asString();
+    m_baseFrame = rf.check("tfBaseFrameName", yarp::os::Value("openVR_origin"))
+                      .asString();
 
     yarp::os::Property tfClientCfg;
     tfClientCfg.put("device", "transformClient");
-    tfClientCfg.put("local",  rf.check("tfLocal", yarp::os::Value("/OpenVRTrackers/tf")).asString());
-    tfClientCfg.put("remote", rf.check("tfRemote", yarp::os::Value("/transformServer")).asString());
+    tfClientCfg.put(
+        "local",
+        rf.check("tfLocal", yarp::os::Value("/OpenVRTrackers/tf")).asString());
+    tfClientCfg.put(
+        "remote",
+        rf.check("tfRemote", yarp::os::Value("/transformServer")).asString());
 
-    if (!m_driver.open(tfClientCfg))
-    {
-        yError() << "Unable to open polydriver with the following options:" << tfClientCfg.toString();
+    if (!m_driver.open(tfClientCfg)) {
+        yError() << "Unable to open polydriver with the following options:"
+                 << tfClientCfg.toString();
         return false;
     }
 
-    if (!m_driver.view(m_tf) || !m_tf)
-    {
+    if (!m_driver.view(m_tf) || !m_tf) {
         yError() << "Unable to view IFrameTransform interface.";
         return false;
     }
 
-    m_sendBuffer.resize(4,4);
+    m_sendBuffer.resize(4, 4);
     m_sendBuffer.eye();
 
     return true;
