@@ -11,6 +11,73 @@
 #ifndef OPENVR_TRACKERS_DRIVER_H
 #define OPENVR_TRACKERS_DRIVER_H
 
-#include <openvr.h>
+#include <array>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#endif
+namespace openvr {
+    struct TrackedDevice;
+    class DevicesManager;
+
+    enum class TrackingUniverseOrigin
+    {
+        Seated = 0,
+        Standing = 1,
+        Raw = 2,
+    };
+
+    enum class TrackedDeviceType
+    {
+        Invalid = 0,
+        HMD = 1,
+        Controller = 2,
+        GenericTracker = 3,
+        TrackingReference = 4,
+        DisplayRedirect = 5,
+    };
+} // namespace openvr
+
+struct openvr::TrackedDevice
+{
+    size_t index;
+    std::string serialNumber;
+    std::array<double, 3> position;
+    std::array<double, 9> rotationRowMajor;
+    TrackedDeviceType type = TrackedDeviceType::Invalid;
+};
+
+class openvr::DevicesManager : std::enable_shared_from_this<DevicesManager>
+{
+public:
+    DevicesManager(
+        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Seated);
+    ~DevicesManager();
+
+    bool valid() const;
+    bool initialize();
+    bool initialized() const;
+
+    bool addDevice(const size_t index);
+    bool removeDevice(const std::string& serialNumber);
+    std::vector<std::string> managedDevices() const;
+
+    void clearEvents();
+    void processEvents();
+
+    bool updateFromRuntime();
+
+    std::optional<std::string> serialNumber(const size_t index) const;
+    std::optional<std::reference_wrapper<const std::array<double, 3>>>
+    position(const std::string& serialNumber) const;
+    std::optional<std::reference_wrapper<const std::array<double, 9>>>
+    rotationRowMajor(const std::string& serialNumber) const;
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> pImpl;
+};
+
+#endif // OPENVR_TRACKERS_DRIVER_H

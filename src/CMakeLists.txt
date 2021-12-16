@@ -1,3 +1,5 @@
+find_package(Threads REQUIRED)
+
 # ===================
 # openvr-trackers-lib
 # ===================
@@ -14,6 +16,7 @@ set(${LIB_TARGET_NAME}_HDR
 
 add_library(
     ${LIB_TARGET_NAME}
+    STATIC
     ${${LIB_TARGET_NAME}_SRC}
     ${${LIB_TARGET_NAME}_HDR})
 
@@ -25,6 +28,8 @@ target_include_directories(
 target_link_libraries(
     ${LIB_TARGET_NAME}
     PRIVATE
+    YARP::YARP_os
+    Threads::Threads
     PkgConfig::openvr)
 
 # ====================
