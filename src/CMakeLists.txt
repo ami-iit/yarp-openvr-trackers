@@ -32,6 +32,10 @@ target_link_libraries(
     Threads::Threads
     PkgConfig::openvr)
 
+# Test executable
+add_executable(run_driver run_driver.cpp)
+target_link_libraries(run_driver PRIVATE ${LIB_TARGET_NAME})
+
 # ====================
 # yarp-openvr-trackers
 # ====================
