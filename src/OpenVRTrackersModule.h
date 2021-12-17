@@ -11,6 +11,8 @@
 #ifndef OPENVR_TRACKERS_MODULE_H
 #define OPENVR_TRACKERS_MODULE_H
 
+#include "OpenVRTrackersDriver.h"
+
 #include <yarp/dev/IFrameTransform.h>
 #include <yarp/dev/PolyDriver.h>
 #include <yarp/os/RFModule.h>
@@ -18,22 +20,24 @@
 
 #include <string>
 
-class OpenVRTrackersModule : public yarp::os::RFModule
+class OpenVRTrackersModule final : public yarp::os::RFModule
 {
-    yarp::dev::PolyDriver m_driver;
-    yarp::dev::IFrameTransform* m_tf;
-    yarp::sig::Matrix m_sendBuffer;
-    std::string m_baseFrame;
-    double m_period;
-
 public:
-    virtual bool configure(yarp::os::ResourceFinder& rf) final;
+    bool configure(yarp::os::ResourceFinder& rf) override;
+    double getPeriod() override;
+    bool updateModule() override;
+    bool close() override;
 
-    virtual double getPeriod() final;
+private:
+    double m_period;
+    std::string m_baseFrame;
 
-    virtual bool updateModule() final;
+    yarp::sig::Matrix m_sendBuffer;
+    yarp::dev::IFrameTransform* m_tf;
 
-    virtual bool close() final;
+    yarp::dev::PolyDriver m_driver;
+
+    openvr::DevicesManager m_manager;
 };
 
 #endif // OPENVR_TRACKERS_MODULE_H
