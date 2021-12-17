@@ -33,7 +33,20 @@ public:
 
     std::thread detector;
 
-    mutable std::mutex mutex;
+    mutable std::recursive_mutex mutex;
+
+    static bool DeviceTypeIsSupported(const TrackedDeviceType type) {
+
+        switch (type)
+        {
+            case TrackedDeviceType::HMD:
+            case TrackedDeviceType::Controller:
+            case TrackedDeviceType::GenericTracker:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 openvr::DevicesManager::DevicesManager(const TrackingUniverseOrigin origin)
@@ -92,7 +105,9 @@ bool openvr::DevicesManager::initialize()
         return false;
     }
 
+    yDebug() << "OpenVR runtime correctly started";
     yDebug() << "Scanning for existing devices";
+
     const auto connectedDevicesIndices = [&]() -> std::vector<size_t> {
         std::vector<size_t> indices = {};
 
@@ -104,6 +119,8 @@ bool openvr::DevicesManager::initialize()
 
         return indices;
     }();
+
+    yDebug() << "Found" << connectedDevicesIndices.size() << "devices";
 
     for (const auto deviceIndex : connectedDevicesIndices) {
         yDebug() << "Inserting device with index" << deviceIndex;
@@ -121,6 +138,8 @@ bool openvr::DevicesManager::initialize()
     // Create the detector thread
     auto detectorLoop = [this]() {
         yDebug() << "Detector thread: starting";
+
+        // this->clearEvents();
 
         while (this->initialized()) {
             this->processEvents();
@@ -142,17 +161,32 @@ bool openvr::DevicesManager::addDevice(const size_t index)
     const auto lock = std::unique_lock(pImpl->mutex);
 
     // Make sure the device is connected
+    yDebug() << "Checking if device is connected";
     if (!pImpl->vr->IsTrackedDeviceConnected(index)) {
         yError() << "Failed to add unconnected device with index" << index;
         return false;
     }
 
-    // Get properties
-    const std::string serialNumber;
-    const TrackedDeviceType type = TrackedDeviceType();
+    // Get the Serial Number of the device
+    char buffer[vr::k_unMaxPropertyStringSize];
+    const uint32_t numBytes = pImpl->vr->GetStringTrackedDeviceProperty(
+        index,
+        vr::Prop_SerialNumber_String,
+        buffer,
+        vr::k_unMaxPropertyStringSize);
+    const std::string serialNumber(buffer);
+
+    // Get the type of the device
+    const TrackedDeviceType type = TrackedDeviceType(
+        pImpl->vr->GetTrackedDeviceClass(index));
+
+    if (!Impl::DeviceTypeIsSupported(type)) {
+        yInfo() << "The device" << serialNumber << "has unsupported type";
+        return true;
+    }
 
     // Create the device
-    yDebug() << "Adding device" << serialNumber << " (index=" << index << ")";
+    yDebug() << "Adding device" << serialNumber << " (index =" << index << ", type =" << int(type) << ")";
     const auto device = [&]() {
         TrackedDevice device;
         device.type = type;
@@ -229,8 +263,13 @@ void openvr::DevicesManager::processEvents()
 
         switch (event.eventType) {
             case vr::VREvent_TrackedDeviceActivated:
+                this->addDevice(event.trackedDeviceIndex);
                 break;
             case vr::VREvent_TrackedDeviceDeactivated:
+                for (const auto& [sn, device]: pImpl->devices) {
+                    if (device.index == event.trackedDeviceIndex)
+                        this->removeDevice(sn);
+                }
                 break;
             case vr::VREvent_TrackedDeviceUpdated:
                 // index no
@@ -264,25 +303,28 @@ void openvr::DevicesManager::processEvents()
     }
 }
 
-bool openvr::DevicesManager::updateFromRuntime()
+// bool openvr::DevicesManager::updateFromRuntime()
+// {
+//     if (!this->initialized()) {
+//         yError() << "Failed to read data from the runtime, the manager is "
+//                  << "not initialized";
+//         return false;
+//     }
+
+//     const auto lock = std::unique_lock(pImpl->mutex);
+
+//     return false;
+// }
+
+// std::optional<std::reference_wrapper<const std::array<double, 3>>>
+// std::array<double, 3>
+std::optional<openvr::Pose>
+openvr::DevicesManager::pose(const std::string& serialNumber) const
 {
     if (!this->initialized()) {
         yError() << "Failed to read data from the runtime, the manager is "
                  << "not initialized";
-        return false;
-    }
-
-    const auto lock = std::unique_lock(pImpl->mutex);
-
-    return false;
-}
-
-std::optional<std::reference_wrapper<const std::array<double, 3>>>
-openvr::DevicesManager::position(const std::string& serialNumber) const
-{
-    if (!this->initialized()) {
-        yError() << "Failed to read data from the runtime, the manager is "
-                 << "not initialized";
+        // return {};
         return std::nullopt;
     }
 
@@ -290,12 +332,14 @@ openvr::DevicesManager::position(const std::string& serialNumber) const
 
     if (pImpl->devices.find(serialNumber) == pImpl->devices.end()) {
         yError();
+        // return {};
         return std::nullopt;
     }
 
     if (!pImpl->vr->IsTrackedDeviceConnected(
             pImpl->devices[serialNumber].index)) {
         yError();
+        // return {};
         return std::nullopt;
     }
 
@@ -310,7 +354,8 @@ openvr::DevicesManager::position(const std::string& serialNumber) const
         &pose);
 
     if (!pose.bPoseIsValid) {
-        yError() << "The pose of device" << serialNumber << "is not valid";
+        yWarning() << "The pose of device" << serialNumber << "is not valid";
+        // return {};
         return std::nullopt;
     }
 
@@ -319,12 +364,32 @@ openvr::DevicesManager::position(const std::string& serialNumber) const
         yError() << "The state of the output of device" << serialNumber
                  << "is not ok";
         return std::nullopt;
+        // return {};
     }
 
-    pImpl->devices[serialNumber].position = {
+    // pImpl->devices[serialNumber].position = {
+        // pose.mDeviceToAbsoluteTracking.m[0][3],
+        // pose.mDeviceToAbsoluteTracking.m[1][3],
+        // pose.mDeviceToAbsoluteTracking.m[2][3]};
+
+
+    Pose out;
+    out.position = {
         pose.mDeviceToAbsoluteTracking.m[0][3],
         pose.mDeviceToAbsoluteTracking.m[1][3],
-        pose.mDeviceToAbsoluteTracking.m[2][3]};
+        pose.mDeviceToAbsoluteTracking.m[2][3],
+        };
+    out.rotationRowMajor = {
+        pose.mDeviceToAbsoluteTracking.m[0][0], pose.mDeviceToAbsoluteTracking.m[0][1], pose.mDeviceToAbsoluteTracking.m[0][2],
+        pose.mDeviceToAbsoluteTracking.m[1][0], pose.mDeviceToAbsoluteTracking.m[1][1], pose.mDeviceToAbsoluteTracking.m[1][2],
+        pose.mDeviceToAbsoluteTracking.m[2][0], pose.mDeviceToAbsoluteTracking.m[2][1], pose.mDeviceToAbsoluteTracking.m[2][2],
+    };
+    return out;
 
-    return std::ref(pImpl->devices[serialNumber].position);
+    // return pImpl->devices[serialNumber].position;
+    // return std::ref(pImpl->devices[serialNumber].position);
+    // return {
+        // pose.mDeviceToAbsoluteTracking.m[0][3],
+        // pose.mDeviceToAbsoluteTracking.m[1][3],
+        // pose.mDeviceToAbsoluteTracking.m[2][3]};
 }

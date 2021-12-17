@@ -40,6 +40,11 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     m_sendBuffer.resize(4, 4);
     m_sendBuffer.eye();
 
+    if (!m_manager.initialize()) {
+        yError() << "Failed to initialize the OpenVR devices manager.";
+        return false;
+    }
+
     return true;
 }
 
@@ -50,8 +55,44 @@ double OpenVRTrackersModule::getPeriod()
 
 bool OpenVRTrackersModule::updateModule()
 {
-    std::string frameToSendName{"test"};
-    m_tf->setTransform(frameToSendName, m_baseFrame, m_sendBuffer);
+    // const std::string sn_tracker = "LHR-8F3A4D72"; // tracker
+    
+    // const std::string sn_hmd = "LHR-752422B9"; // hmd
+
+    // const std::string sn_t1 = "LHB-7DF84991"; // tower
+    // const std::string sn_t2 = "LHB-8110B10A"; // tower
+    // const std::string sn_t3 = "LHB-A6772E58"; // tower
+
+    // const auto& sn = sn_t1;
+
+    for (const auto& sn: m_manager.managedDevices()) {
+    
+        if (const auto& poseOpt = m_manager.pose(sn); poseOpt.has_value()) {
+
+            const auto& pose = poseOpt.value();
+
+            m_sendBuffer = yarp::sig::Matrix(4, 4).eye();
+
+            m_sendBuffer[0][0] = pose.rotationRowMajor[0];
+            m_sendBuffer[0][1] = pose.rotationRowMajor[1];
+            m_sendBuffer[0][2] = pose.rotationRowMajor[2];
+            m_sendBuffer[1][0] = pose.rotationRowMajor[3];
+            m_sendBuffer[1][1] = pose.rotationRowMajor[4];
+            m_sendBuffer[1][2] = pose.rotationRowMajor[5];
+            m_sendBuffer[2][0] = pose.rotationRowMajor[6];
+            m_sendBuffer[2][1] = pose.rotationRowMajor[7];
+            m_sendBuffer[2][2] = pose.rotationRowMajor[8];
+
+            m_sendBuffer[0][3] = pose.position[0];
+            m_sendBuffer[1][3] = pose.position[1];
+            m_sendBuffer[2][3] = pose.position[2];
+
+            m_tf->setTransform(sn, m_baseFrame, m_sendBuffer);
+        }    
+    }
+
+    // std::string frameToSendName{"test"};
+    // m_tf->setTransform(frameToSendName, m_baseFrame, m_sendBuffer);
 
     return true;
 }

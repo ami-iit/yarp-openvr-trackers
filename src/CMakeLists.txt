@@ -25,6 +25,11 @@ target_include_directories(
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR})
 
+target_compile_definitions(
+    ${LIB_TARGET_NAME}
+    PUBLIC
+    VR_API_PUBLIC)
+
 target_link_libraries(
     ${LIB_TARGET_NAME}
     PRIVATE
