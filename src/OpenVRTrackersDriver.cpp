@@ -17,10 +17,11 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 
-// ==============
-// DevicesManager
-// ==============
+// ====================
+// DevicesManager::Impl
+// ====================
 
 class openvr::DevicesManager::Impl
 {
@@ -33,8 +34,43 @@ public:
 
     std::thread detector;
 
-    mutable std::mutex mutex;
+    mutable std::recursive_mutex mutex;
+
+    static bool DeviceTypeIsSupported(const TrackedDeviceType type)
+    {
+        switch (type) {
+            case TrackedDeviceType::HMD:
+            case TrackedDeviceType::Controller:
+            case TrackedDeviceType::GenericTracker:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static std::string
+    GetStringProperty(vr::IVRSystem& vr,
+                      const uint32_t index,
+                      const vr::ETrackedDeviceProperty property)
+    {
+        // Allocate the buffer using the maximum allowed size
+        char buffer[vr::k_unMaxPropertyStringSize];
+
+        // Get the string property
+        vr.GetStringTrackedDeviceProperty( //
+            index,
+            property,
+            buffer,
+            vr::k_unMaxPropertyStringSize);
+
+        // Convert to std::string
+        return std::string(buffer);
+    };
 };
+
+// ==============
+// DevicesManager
+// ==============
 
 openvr::DevicesManager::DevicesManager(const TrackingUniverseOrigin origin)
     : pImpl{std::make_unique<Impl>()}
@@ -92,7 +128,10 @@ bool openvr::DevicesManager::initialize()
         return false;
     }
 
+    yDebug() << "OpenVR runtime correctly started";
     yDebug() << "Scanning for existing devices";
+
+    // Get the indices of all the connected devices
     const auto connectedDevicesIndices = [&]() -> std::vector<size_t> {
         std::vector<size_t> indices = {};
 
@@ -105,6 +144,9 @@ bool openvr::DevicesManager::initialize()
         return indices;
     }();
 
+    yDebug() << "Found" << connectedDevicesIndices.size() << "devices";
+
+    // Add all the devices with supported types
     for (const auto deviceIndex : connectedDevicesIndices) {
         yDebug() << "Inserting device with index" << deviceIndex;
 
@@ -121,6 +163,7 @@ bool openvr::DevicesManager::initialize()
     // Create the detector thread
     auto detectorLoop = [this]() {
         yDebug() << "Detector thread: starting";
+        this->clearEvents();
 
         while (this->initialized()) {
             this->processEvents();
@@ -142,17 +185,29 @@ bool openvr::DevicesManager::addDevice(const size_t index)
     const auto lock = std::unique_lock(pImpl->mutex);
 
     // Make sure the device is connected
+    yDebug() << "Checking if device is connected";
     if (!pImpl->vr->IsTrackedDeviceConnected(index)) {
         yError() << "Failed to add unconnected device with index" << index;
         return false;
     }
 
-    // Get properties
-    const std::string serialNumber;
-    const TrackedDeviceType type = TrackedDeviceType();
+    // Get the serial number of the device, used as key in the map where
+    // devices are stored
+    std::string serialNumber = Impl::GetStringProperty(
+        *pImpl->vr, index, vr::Prop_SerialNumber_String);
+
+    // Get the type of the device
+    const TrackedDeviceType type =
+        TrackedDeviceType(pImpl->vr->GetTrackedDeviceClass(index));
+
+    if (!Impl::DeviceTypeIsSupported(type)) {
+        yInfo() << "The device" << serialNumber << "has unsupported type";
+        return true;
+    }
 
     // Create the device
-    yDebug() << "Adding device" << serialNumber << " (index=" << index << ")";
+    yDebug() << "Adding device" << serialNumber << " (index =" << index
+             << ", type =" << int(type) << ")";
     const auto device = [&]() {
         TrackedDevice device;
         device.type = type;
@@ -194,12 +249,110 @@ std::vector<std::string> openvr::DevicesManager::managedDevices() const
     std::vector<std::string> managedDevicesSerials;
     managedDevicesSerials.reserve(pImpl->devices.size());
 
+    // Return the serial numbers of the managed devices, stored as
+    // keys in the unordered map {serial -> TrackedDevice}
     for (const auto& [serial, _] : pImpl->devices) {
         managedDevicesSerials.push_back(serial);
     }
 
     return managedDevicesSerials;
 }
+
+openvr::TrackedDeviceType
+openvr::DevicesManager::type(const std::string& serialNumber) const
+{
+    if (!this->initialized()) {
+        yError() << "Failed to read data from the runtime, the manager is "
+                 << "not initialized";
+        return TrackedDeviceType::Invalid;
+    }
+
+    const auto lock = std::unique_lock(pImpl->mutex);
+
+    // Make sure the device is tracked
+    if (pImpl->devices.find(serialNumber) == pImpl->devices.end()) {
+        yError();
+        return TrackedDeviceType::Invalid;
+    }
+
+    return pImpl->devices[serialNumber].type;
+}
+
+std::optional<openvr::Pose>
+openvr::DevicesManager::pose(const std::string& serialNumber) const
+{
+    if (!this->initialized()) {
+        yError() << "Failed to read data from the runtime, the manager is "
+                 << "not initialized";
+        return std::nullopt;
+    }
+
+    const auto lock = std::unique_lock(pImpl->mutex);
+
+    // Make sure the device is tracked
+    if (pImpl->devices.find(serialNumber) == pImpl->devices.end()) {
+        yError();
+        return std::nullopt;
+    }
+
+    // Make sure the device is connected
+    if (!pImpl->vr->IsTrackedDeviceConnected(
+            pImpl->devices[serialNumber].index)) {
+        yError();
+        return std::nullopt;
+    }
+
+    vr::TrackedDevicePose_t pose;
+    vr::VRControllerState_t state;
+
+    // Get the device pose
+    pImpl->vr->GetControllerStateWithPose(
+        vr::ETrackingUniverseOrigin(pImpl->origin),
+        pImpl->devices[serialNumber].index,
+        &state,
+        sizeof(state),
+        &pose);
+
+    // Check whether the whole received state is valid
+    if (pose.eTrackingResult
+        != vr::ETrackingResult::TrackingResult_Running_OK) {
+        yError() << "The state of the output of device" << serialNumber
+                 << "is not ok";
+        return std::nullopt;
+    }
+
+    // Check pose validity
+    if (!pose.bPoseIsValid) {
+        yWarning() << "The pose of device" << serialNumber << "is not valid";
+        return std::nullopt;
+    }
+
+    // Build and return the pose
+    return [&pose]() -> const Pose {
+        Pose out;
+        out.position = {
+            pose.mDeviceToAbsoluteTracking.m[0][3],
+            pose.mDeviceToAbsoluteTracking.m[1][3],
+            pose.mDeviceToAbsoluteTracking.m[2][3],
+        };
+        out.rotationRowMajor = {
+            pose.mDeviceToAbsoluteTracking.m[0][0],
+            pose.mDeviceToAbsoluteTracking.m[0][1],
+            pose.mDeviceToAbsoluteTracking.m[0][2],
+            pose.mDeviceToAbsoluteTracking.m[1][0],
+            pose.mDeviceToAbsoluteTracking.m[1][1],
+            pose.mDeviceToAbsoluteTracking.m[1][2],
+            pose.mDeviceToAbsoluteTracking.m[2][0],
+            pose.mDeviceToAbsoluteTracking.m[2][1],
+            pose.mDeviceToAbsoluteTracking.m[2][2],
+        };
+        return out;
+    }();
+}
+
+// ===============
+// Private methods
+// ===============
 
 void openvr::DevicesManager::clearEvents()
 {
@@ -219,31 +372,40 @@ void openvr::DevicesManager::processEvents()
     vr::VREvent_t event;
     const auto lock = std::unique_lock(pImpl->mutex);
 
+    if (!this->initialized()) {
+        yError() << "Manager not initialized";
+        return;
+    }
+
     while (pImpl->vr->PollNextEvent(&event, sizeof(event))) {
 
-        yDebug() << "Received event:"
-                 << pImpl->vr->GetEventTypeNameFromEnum(
-                        vr::EVREventType(event.eventType));
-
-        yWarning() << event.trackedDeviceIndex;
+        // yDebug() << "Received event:"
+        //          << pImpl->vr->GetEventTypeNameFromEnum(
+        //                 vr::EVREventType(event.eventType));
+        // yDebug() << event.trackedDeviceIndex;
 
         switch (event.eventType) {
-            case vr::VREvent_TrackedDeviceActivated:
+            case vr::VREvent_TrackedDeviceActivated: {
+                this->addDevice(event.trackedDeviceIndex);
                 break;
-            case vr::VREvent_TrackedDeviceDeactivated:
+            }
+            case vr::VREvent_TrackedDeviceDeactivated: {
+                for (const auto& [sn, device] : pImpl->devices) {
+                    if (device.index == event.trackedDeviceIndex)
+                        this->removeDevice(sn);
+                }
                 break;
+            }
             case vr::VREvent_TrackedDeviceUpdated:
-                // index no
-                break;
             case vr::VREvent_TrackedDeviceRoleChanged:
-                break;
             case vr::VREvent_TrackedDeviceUserInteractionStarted:
-                break;
             case vr::VREvent_TrackedDeviceUserInteractionEnded:
                 break;
-            case vr::VREvent_Quit:
+            case vr::VREvent_Quit: {
+                // Notify we need to do some work before quitting
                 pImpl->vr->AcknowledgeQuit_Exiting();
 
+                // Remove all the tracked devices
                 for (const auto& serial : this->managedDevices()) {
                     if (!this->removeDevice(serial)) {
                         yWarning()
@@ -251,80 +413,19 @@ void openvr::DevicesManager::processEvents()
                     }
                 }
 
+                // Shutdown the runtime
                 pImpl->vr = nullptr;
                 vr::VR_Shutdown();
                 break;
+            }
             default:
                 break;
         }
 
+        // Break early when attempting to process events after
+        // the Quit event has been received
         if (!pImpl->vr) {
             break;
         }
     }
-}
-
-bool openvr::DevicesManager::updateFromRuntime()
-{
-    if (!this->initialized()) {
-        yError() << "Failed to read data from the runtime, the manager is "
-                 << "not initialized";
-        return false;
-    }
-
-    const auto lock = std::unique_lock(pImpl->mutex);
-
-    return false;
-}
-
-std::optional<std::reference_wrapper<const std::array<double, 3>>>
-openvr::DevicesManager::position(const std::string& serialNumber) const
-{
-    if (!this->initialized()) {
-        yError() << "Failed to read data from the runtime, the manager is "
-                 << "not initialized";
-        return std::nullopt;
-    }
-
-    const auto lock = std::unique_lock(pImpl->mutex);
-
-    if (pImpl->devices.find(serialNumber) == pImpl->devices.end()) {
-        yError();
-        return std::nullopt;
-    }
-
-    if (!pImpl->vr->IsTrackedDeviceConnected(
-            pImpl->devices[serialNumber].index)) {
-        yError();
-        return std::nullopt;
-    }
-
-    vr::TrackedDevicePose_t pose;
-    vr::VRControllerState_t state;
-
-    pImpl->vr->GetControllerStateWithPose(
-        vr::ETrackingUniverseOrigin(pImpl->origin),
-        pImpl->devices[serialNumber].index,
-        &state,
-        sizeof(state),
-        &pose);
-
-    if (!pose.bPoseIsValid) {
-        yError() << "The pose of device" << serialNumber << "is not valid";
-        return std::nullopt;
-    }
-
-    if (pose.eTrackingResult
-        != vr::ETrackingResult::TrackingResult_Running_OK) {
-        yError() << "The state of the output of device" << serialNumber
-                 << "is not ok";
-        return std::nullopt;
-    }
-
-    pImpl->devices[serialNumber].position = {
-        pose.mDeviceToAbsoluteTracking.m[0][3],
-        pose.mDeviceToAbsoluteTracking.m[1][3],
-        pose.mDeviceToAbsoluteTracking.m[2][3]};
-
-    return std::ref(pImpl->devices[serialNumber].position);
 }

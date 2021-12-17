@@ -15,10 +15,10 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace openvr {
+    struct Pose;
     struct TrackedDevice;
     class DevicesManager;
 
@@ -40,16 +40,20 @@ namespace openvr {
     };
 } // namespace openvr
 
+struct openvr::Pose
+{
+    std::array<double, 3> position;
+    std::array<double, 9> rotationRowMajor;
+};
+
 struct openvr::TrackedDevice
 {
     size_t index;
     std::string serialNumber;
-    std::array<double, 3> position;
-    std::array<double, 9> rotationRowMajor;
     TrackedDeviceType type = TrackedDeviceType::Invalid;
 };
 
-class openvr::DevicesManager : std::enable_shared_from_this<DevicesManager>
+class openvr::DevicesManager
 {
 public:
     DevicesManager(
@@ -64,20 +68,15 @@ public:
     bool removeDevice(const std::string& serialNumber);
     std::vector<std::string> managedDevices() const;
 
-    void clearEvents();
-    void processEvents();
-
-    bool updateFromRuntime();
-
-    std::optional<std::string> serialNumber(const size_t index) const;
-    std::optional<std::reference_wrapper<const std::array<double, 3>>>
-    position(const std::string& serialNumber) const;
-    std::optional<std::reference_wrapper<const std::array<double, 9>>>
-    rotationRowMajor(const std::string& serialNumber) const;
+    TrackedDeviceType type(const std::string& serialNumber) const;
+    std::optional<Pose> pose(const std::string& serialNumber) const;
 
 private:
     class Impl;
     std::unique_ptr<Impl> pImpl;
+
+    void clearEvents();
+    void processEvents();
 };
 
 #endif // OPENVR_TRACKERS_DRIVER_H
