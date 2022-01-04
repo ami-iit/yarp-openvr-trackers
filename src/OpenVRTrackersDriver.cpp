@@ -350,6 +350,21 @@ openvr::DevicesManager::pose(const std::string& serialNumber) const
     }();
 }
 
+bool openvr::DevicesManager::resetSeatedPosition()
+{
+    if (!this->initialized()) {
+        yError() << "Failed to read data from the runtime, the manager is "
+                 << "not initialized";
+        return false;
+    }
+
+    const auto lock = std::unique_lock(pImpl->mutex);
+
+    vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
+
+    return true;
+}
+
 // ===============
 // Private methods
 // ===============

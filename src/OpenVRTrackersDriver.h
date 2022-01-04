@@ -71,6 +71,8 @@ public:
     TrackedDeviceType type(const std::string& serialNumber) const;
     std::optional<Pose> pose(const std::string& serialNumber) const;
 
+    bool resetSeatedPosition();
+
 private:
     class Impl;
     std::unique_ptr<Impl> pImpl;
