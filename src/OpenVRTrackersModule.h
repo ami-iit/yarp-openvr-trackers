@@ -12,21 +12,26 @@
 #define OPENVR_TRACKERS_MODULE_H
 
 #include "OpenVRTrackersDriver.h"
+#include <thrifts/OpenVRTrackersCommands.h>
 
 #include <yarp/dev/IFrameTransform.h>
 #include <yarp/dev/PolyDriver.h>
 #include <yarp/os/RFModule.h>
 #include <yarp/sig/Matrix.h>
+#include <yarp/os/Port.h>
 
 #include <string>
+#include <mutex>
 
-class OpenVRTrackersModule final : public yarp::os::RFModule
+class OpenVRTrackersModule final : public yarp::os::RFModule,
+                                   public OpenVRTrackersCommands
 {
 public:
     bool configure(yarp::os::ResourceFinder& rf) override;
     double getPeriod() override;
     bool updateModule() override;
     bool close() override;
+    bool resetSeatedPosition() override;
 
 private:
     double m_period;
@@ -38,6 +43,10 @@ private:
     yarp::dev::PolyDriver m_driver;
 
     openvr::DevicesManager m_manager;
+
+    yarp::os::Port m_rpcPort;
+
+    mutable std::mutex m_mutex;
 };
 
 #endif // OPENVR_TRACKERS_MODULE_H

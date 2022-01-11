@@ -51,10 +51,15 @@ set(${EXE_TARGET_NAME}_HDR
     OpenVRTrackersModule.h
 )
 
+set (THRIFTS thrifts/OpenVRTrackersCommands.thrift)
+
+yarp_add_idl(${EXE_TARGET_NAME}_GEN_FILES ${THRIFTS})
+
 add_executable(
     ${EXE_TARGET_NAME}
     ${${EXE_TARGET_NAME}_SRC}
-    ${${EXE_TARGET_NAME}_HDR})
+    ${${EXE_TARGET_NAME}_HDR}
+    ${${EXE_TARGET_NAME}_GEN_FILES})
 
 target_link_libraries(
     ${EXE_TARGET_NAME}

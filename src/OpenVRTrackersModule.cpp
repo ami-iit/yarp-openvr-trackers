@@ -13,7 +13,7 @@
 
 namespace openvr_trackers_module {
     constexpr double DefaultPeriod = 0.010;
-    const std::string DefaultTfLocal = "/OpenVRTrackers/tf";
+    const std::string DefaultTfLocal = "/tf";
     const std::string DefaultTfRemote = "/transformServer";
     const std::string DefaultTfBaseFrameName = "openVR_origin";
     const std::string ModuleName = "OpenVRTrackersModule";
@@ -22,9 +22,25 @@ namespace openvr_trackers_module {
 
 bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     // ===========================
     // Check configuration options
     // ===========================
+
+    // Try to find the "name" entry
+    std::string name;
+    if (!(rf.check("name")
+          && rf.find("name").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix
+                << "Using default name:"
+                << openvr_trackers_module::ModuleName;
+        name = openvr_trackers_module::ModuleName;
+    }
+    else {
+        name = rf.find("name").asString();
+    }
+    this->setName(name.c_str());
 
     // Try to find the "period" entry
     if (!(rf.check("period") && rf.find("period").isFloat64())) {
@@ -52,8 +68,8 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     std::string tfLocal;
     if (!(rf.check("tfLocal") && rf.find("tfLocal").isString())) {
         yInfo() << openvr_trackers_module::LogPrefix << "Using default tfLocal:"
-                << openvr_trackers_module::DefaultTfLocal;
-        tfLocal = openvr_trackers_module::DefaultTfLocal;
+                << "/" + getName() + openvr_trackers_module::DefaultTfLocal;
+        tfLocal = "/" + getName() + openvr_trackers_module::DefaultTfLocal;
     }
     else {
         tfLocal = rf.find("tfLocal").asString();
@@ -103,16 +119,36 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
         return false;
     }
 
+    if (!m_manager.resetSeatedPosition())
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Failed to reset seated position.";
+        return false;
+    }
+
+    // Bind the RPC service to the module's object
+    this->yarp().attachAsServer(this->m_rpcPort);
+    
+    if(!m_rpcPort.open("/" + openvr_trackers_module::ModuleName +  + "/rpc"))
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Could not open"
+                 << "/" + openvr_trackers_module::ModuleName +  + "/rpc" << " RPC port.";
+        return false;
+    }
+
     return true;
 }
 
 double OpenVRTrackersModule::getPeriod()
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     return m_period;
 }
 
 bool OpenVRTrackersModule::updateModule()
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     // Iterate over all the managed devices of the driver
     for (const auto& sn : m_manager.managedDevices()) {
 
@@ -172,6 +208,22 @@ bool OpenVRTrackersModule::updateModule()
 
 bool OpenVRTrackersModule::close()
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     m_driver.close();
+    m_rpcPort.close();
+    return true;
+}
+
+bool OpenVRTrackersModule::resetSeatedPosition()
+{
+    const auto lock = std::unique_lock(m_mutex);
+
+    if (!m_manager.resetSeatedPosition())
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Failed to reset seated position.";
+        return false;
+    }
+
     return true;
 }
