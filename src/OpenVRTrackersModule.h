@@ -46,7 +46,7 @@ private:
 
     yarp::os::Port m_rpcPort;
 
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
 };
 
 #endif // OPENVR_TRACKERS_MODULE_H

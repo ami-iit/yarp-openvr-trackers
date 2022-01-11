@@ -40,7 +40,7 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     else {
         name = rf.find("name").asString();
     }
-    setName(name.c_str());
+    this->setName(name.c_str());
 
     // Try to find the "period" entry
     if (!(rf.check("period") && rf.find("period").isFloat64())) {
@@ -125,7 +125,9 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
         return false;
     }
 
+    // Bind the RPC service to the module's object
     this->yarp().attachAsServer(this->m_rpcPort);
+    
     if(!m_rpcPort.open("/" + openvr_trackers_module::ModuleName +  + "/rpc"))
     {
         yError() << openvr_trackers_module::LogPrefix << "Could not open" << "/" + openvr_trackers_module::ModuleName +  + "/rpc" << " RPC port.";
