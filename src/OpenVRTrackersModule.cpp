@@ -68,8 +68,8 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     std::string tfLocal;
     if (!(rf.check("tfLocal") && rf.find("tfLocal").isString())) {
         yInfo() << openvr_trackers_module::LogPrefix << "Using default tfLocal:"
-                << "/" + openvr_trackers_module::ModuleName + openvr_trackers_module::DefaultTfLocal;
-        tfLocal = "/" + openvr_trackers_module::ModuleName + openvr_trackers_module::DefaultTfLocal;
+                << "/" + getName() + openvr_trackers_module::DefaultTfLocal;
+        tfLocal = "/" + getName() + openvr_trackers_module::DefaultTfLocal;
     }
     else {
         tfLocal = rf.find("tfLocal").asString();
@@ -130,7 +130,8 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     
     if(!m_rpcPort.open("/" + openvr_trackers_module::ModuleName +  + "/rpc"))
     {
-        yError() << openvr_trackers_module::LogPrefix << "Could not open" << "/" + openvr_trackers_module::ModuleName +  + "/rpc" << " RPC port.";
+        yError() << openvr_trackers_module::LogPrefix << "Could not open"
+                 << "/" + openvr_trackers_module::ModuleName +  + "/rpc" << " RPC port.";
         return false;
     }
 
