@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 
+project(
+    yarp-openvr-trackers
+    LANGUAGES CXX C
+    VERSION 0.0.1)
 
-project(yarp-openvr-trackers
-        LANGUAGES CXX C
-        VERSION 0.0.1)
+# C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Defines the CMAKE_INSTALL_LIBDIR, CMAKE_INSTALL_BINDIR and many other useful macros.
 # See https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
@@ -64,18 +69,17 @@ find_package(YARP 3.4 COMPONENTS os sig dev math idl_tools REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(openvr REQUIRED IMPORTED_TARGET openvr)
 
-
-
 ### Options
 # Shared/Dynamic or Static library?
 option(BUILD_SHARED_LIBS "Build libraries as shared as opposed to static" ON)
 
 # Enable RPATH support for installed binaries and libraries
 include(AddInstallRPATHSupport)
-add_install_rpath_support(BIN_DIRS "${CMAKE_INSTALL_FULL_BINDIR}"
-                          LIB_DIRS "${CMAKE_INSTALL_FULL_LIBDIR}"
-                          INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
-                          USE_LINK_PATH)
+add_install_rpath_support(
+    BIN_DIRS "${CMAKE_INSTALL_FULL_BINDIR}"
+    LIB_DIRS "${CMAKE_INSTALL_FULL_LIBDIR}"
+    INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
+    USE_LINK_PATH)
 
 # Encourage user to specify a build type (e.g. Release, Debug, etc.), otherwise set it to Release.
 if(NOT CMAKE_CONFIGURATION_TYPES)

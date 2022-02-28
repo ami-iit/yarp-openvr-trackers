@@ -11,50 +11,219 @@
 #include "OpenVRTrackersModule.h"
 #include <yarp/os/LogStream.h>
 
-bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder &rf)
-{
-    m_period = rf.check("period", yarp::os::Value(0.01)).asFloat64();
-    m_baseFrame = rf.check("tfBaseFrameName", yarp::os::Value("openVR_origin")).asString();
+namespace openvr_trackers_module {
+    constexpr double DefaultPeriod = 0.010;
+    const std::string DefaultTfLocal = "/tf";
+    const std::string DefaultTfRemote = "/transformServer";
+    const std::string DefaultTfBaseFrameName = "openVR_origin";
+    const std::string ModuleName = "OpenVRTrackersModule";
+    const std::string LogPrefix = ModuleName + ":";
+} // namespace openvr_trackers_module
 
+bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
+{
+    const auto lock = std::unique_lock(m_mutex);
+
+    // ===========================
+    // Check configuration options
+    // ===========================
+
+    // Try to find the "name" entry
+    std::string name;
+    if (!(rf.check("name")
+          && rf.find("name").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix
+                << "Using default name:"
+                << openvr_trackers_module::ModuleName;
+        name = openvr_trackers_module::ModuleName;
+    }
+    else {
+        name = rf.find("name").asString();
+    }
+    this->setName(name.c_str());
+
+    // Try to find the "period" entry
+    if (!(rf.check("period") && rf.find("period").isFloat64())) {
+        yInfo() << openvr_trackers_module::LogPrefix << "Using default period:"
+                << openvr_trackers_module::DefaultPeriod << "s";
+        m_period = openvr_trackers_module::DefaultPeriod;
+    }
+    else {
+        m_period = rf.find("period").asFloat64();
+    }
+
+    // Try to find the "tfBaseFrameName" entry
+    if (!(rf.check("tfBaseFrameName")
+          && rf.find("tfBaseFrameName").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix
+                << "Using default tfBaseFrameName:"
+                << openvr_trackers_module::DefaultTfBaseFrameName;
+        m_baseFrame = openvr_trackers_module::DefaultTfBaseFrameName;
+    }
+    else {
+        m_baseFrame = rf.find("tfBaseFrameName").asString();
+    }
+
+    // Try to find the "tfLocal" entry
+    std::string tfLocal;
+    if (!(rf.check("tfLocal") && rf.find("tfLocal").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix << "Using default tfLocal:"
+                << "/" + getName() + openvr_trackers_module::DefaultTfLocal;
+        tfLocal = "/" + getName() + openvr_trackers_module::DefaultTfLocal;
+    }
+    else {
+        tfLocal = rf.find("tfLocal").asString();
+    }
+
+    // Try to find the "tfRemote" entry
+    std::string tfRemote;
+    if (!(rf.check("tfRemote") && rf.find("tfRemote").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix
+                << "Using default tfRemote:"
+                << openvr_trackers_module::DefaultTfRemote;
+        tfRemote = openvr_trackers_module::DefaultTfRemote;
+    }
+    else {
+        tfRemote = rf.find("tfRemote").asString();
+    }
+
+    // Create configuration of the "transformClient" device
     yarp::os::Property tfClientCfg;
     tfClientCfg.put("device", "transformClient");
-    tfClientCfg.put("local",  rf.check("tfLocal", yarp::os::Value("/OpenVRTrackers/tf")).asString());
-    tfClientCfg.put("remote", rf.check("tfRemote", yarp::os::Value("/transformServer")).asString());
+    tfClientCfg.put("local", tfLocal);
+    tfClientCfg.put("remote", tfRemote);
 
-    if (!m_driver.open(tfClientCfg))
-    {
-        yError() << "Unable to open polydriver with the following options:" << tfClientCfg.toString();
+    // Open the transformClient device
+    if (!m_driver.open(tfClientCfg)) {
+        yError() << openvr_trackers_module::LogPrefix
+                 << "Unable to open polydriver with the following options:"
+                 << tfClientCfg.toString();
         return false;
     }
 
-    if (!m_driver.view(m_tf) || !m_tf)
-    {
-        yError() << "Unable to view IFrameTransform interface.";
+    // Extract and store the IFrameTransform interface
+    if (!(m_driver.view(m_tf) && m_tf)) {
+        yError() << openvr_trackers_module::LogPrefix
+                 << "Unable to view IFrameTransform interface.";
         return false;
     }
 
-    m_sendBuffer.resize(4,4);
+    // Initialize the transform buffer
+    m_sendBuffer.resize(4, 4);
     m_sendBuffer.eye();
+
+    // Initialize the OpenVR driver
+    if (!m_manager.initialize()) {
+        yError() << openvr_trackers_module::LogPrefix
+                 << "Failed to initialize the OpenVR devices manager.";
+        return false;
+    }
+
+    if (!m_manager.resetSeatedPosition())
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Failed to reset seated position.";
+        return false;
+    }
+
+    // Bind the RPC service to the module's object
+    this->yarp().attachAsServer(this->m_rpcPort);
+    
+    if(!m_rpcPort.open("/" + openvr_trackers_module::ModuleName +  + "/rpc"))
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Could not open"
+                 << "/" + openvr_trackers_module::ModuleName +  + "/rpc" << " RPC port.";
+        return false;
+    }
 
     return true;
 }
 
 double OpenVRTrackersModule::getPeriod()
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     return m_period;
 }
 
 bool OpenVRTrackersModule::updateModule()
 {
-    std::string frameToSendName{"test"};
-    m_tf->setTransform(frameToSendName, m_baseFrame, m_sendBuffer);
+    const auto lock = std::unique_lock(m_mutex);
+
+    // Iterate over all the managed devices of the driver
+    for (const auto& sn : m_manager.managedDevices()) {
+
+        if (const auto& poseOpt = m_manager.pose(sn); poseOpt.has_value()) {
+
+            // Extract the pose of the device
+            const openvr::Pose& pose = poseOpt.value();
+
+            // Compute the prefix of the transform based on the device type.
+            // The final name will be "{tf_name_prefix}/{serial_number}".
+            const std::string tfNamePrefix = [&]() {
+                std::string prefix;
+
+                switch (m_manager.type(sn)) {
+                    case openvr::TrackedDeviceType::HMD:
+                        prefix = "/hmd/";
+                        break;
+                    case openvr::TrackedDeviceType::Controller:
+                        prefix = "/controllers/";
+                        break;
+                    case openvr::TrackedDeviceType::GenericTracker:
+                        prefix = "/trackers/";
+                        break;
+                    default:
+                        break;
+                }
+                return prefix;
+            }();
+
+            // Reset the transform
+            m_sendBuffer.eye();
+
+            // Fill the rotation of the transform using the row-major
+            // serialization used by the driver
+            m_sendBuffer[0][0] = pose.rotationRowMajor[0];
+            m_sendBuffer[0][1] = pose.rotationRowMajor[1];
+            m_sendBuffer[0][2] = pose.rotationRowMajor[2];
+            m_sendBuffer[1][0] = pose.rotationRowMajor[3];
+            m_sendBuffer[1][1] = pose.rotationRowMajor[4];
+            m_sendBuffer[1][2] = pose.rotationRowMajor[5];
+            m_sendBuffer[2][0] = pose.rotationRowMajor[6];
+            m_sendBuffer[2][1] = pose.rotationRowMajor[7];
+            m_sendBuffer[2][2] = pose.rotationRowMajor[8];
+
+            // Fill the position of the transform
+            m_sendBuffer[0][3] = pose.position[0];
+            m_sendBuffer[1][3] = pose.position[1];
+            m_sendBuffer[2][3] = pose.position[2];
+
+            // Publish the transform
+            m_tf->setTransform(tfNamePrefix + sn, m_baseFrame, m_sendBuffer);
+        }
+    }
 
     return true;
 }
 
 bool OpenVRTrackersModule::close()
 {
+    const auto lock = std::unique_lock(m_mutex);
+
     m_driver.close();
+    m_rpcPort.close();
+    return true;
+}
+
+bool OpenVRTrackersModule::resetSeatedPosition()
+{
+    const auto lock = std::unique_lock(m_mutex);
+
+    if (!m_manager.resetSeatedPosition())
+    {
+        yError() << openvr_trackers_module::LogPrefix << "Failed to reset seated position.";
+        return false;
+    }
 
     return true;
 }

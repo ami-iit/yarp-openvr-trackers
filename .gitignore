@@ -1,5 +1,6 @@
 # build folder
 build/*
+build*
 
 # emacs
 *~
@@ -8,3 +9,6 @@ build/*
 # Qtcreator
 *.user*
 *.autosave
+
+# PyCharm
+.idea*

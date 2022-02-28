@@ -8,35 +8,45 @@
  * at your option.
  */
 
-#ifndef OPENVRTRACKERSMODULE_H
-#define OPENVRTRACKERSMODULE_H
+#ifndef OPENVR_TRACKERS_MODULE_H
+#define OPENVR_TRACKERS_MODULE_H
 
-#include <yarp/os/RFModule.h>
-#include <yarp/dev/PolyDriver.h>
+#include "OpenVRTrackersDriver.h"
+#include <thrifts/OpenVRTrackersCommands.h>
+
 #include <yarp/dev/IFrameTransform.h>
+#include <yarp/dev/PolyDriver.h>
+#include <yarp/os/RFModule.h>
 #include <yarp/sig/Matrix.h>
-
-#include <openvr.h>
+#include <yarp/os/Port.h>
 
 #include <string>
+#include <mutex>
 
-class OpenVRTrackersModule : public yarp::os::RFModule
+class OpenVRTrackersModule final : public yarp::os::RFModule,
+                                   public OpenVRTrackersCommands
 {
-    yarp::dev::PolyDriver m_driver;
-    yarp::dev::IFrameTransform* m_tf;
-    yarp::sig::Matrix m_sendBuffer;
-    std::string m_baseFrame;
-    double m_period;
-
 public:
+    bool configure(yarp::os::ResourceFinder& rf) override;
+    double getPeriod() override;
+    bool updateModule() override;
+    bool close() override;
+    bool resetSeatedPosition() override;
 
-    virtual bool configure(yarp::os::ResourceFinder& rf) final;
+private:
+    double m_period;
+    std::string m_baseFrame;
 
-    virtual double getPeriod() final;
+    yarp::sig::Matrix m_sendBuffer;
+    yarp::dev::IFrameTransform* m_tf;
 
-    virtual bool updateModule() final;
+    yarp::dev::PolyDriver m_driver;
 
-    virtual bool close() final;
+    openvr::DevicesManager m_manager;
+
+    yarp::os::Port m_rpcPort;
+
+    mutable std::mutex m_mutex;
 };
 
-#endif // OPENVRTRACKERSMODULE_H
+#endif // OPENVR_TRACKERS_MODULE_H
