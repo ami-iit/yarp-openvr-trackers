@@ -1,28 +1,126 @@
-# Installation
+## yarp-openvr-trackers
 
-## OpenVR
+YARP OpenVR Trackers project allows to stream OpenVR based tracker poses over a YARP Frame Transform Server.
 
-```bash
-git clone https://github.com/ami-iit/openvr  # --depth=1 for a quick clone
+
+
+The installation and usage procedure was tested with Windows 10 OS.
+
+# Prerequisites
+
+### Install Visual Studio
+If you do not already have **Visual Studio** installed on your machine, you can install it using the **[Visual Studio Installer](https://visualstudio.microsoft.com/downloads/)** by enabling **Desktop and Mobile C++** development package.
+This can be enabled by clicking on the `Modify` button in the installer corresponding to the desired installation.
+
+### Install Steam and SteamVR
+- Install [**Steam**](https://store.steampowered.com/about/)
+- After installation, either create a Steam account or use an existing one to log-in and install [**SteamVR**](https://store.steampowered.com/app/250820/SteamVR/).
+
+### Install robotology-superbuild
+We rely on [**YARP**](https://www.yarp.it/latest/) for the use of [**yarp-openvr-trackers**](https://github.com/ami-iit/yarp-openvr-trackers). If `YARP` is not already installed on your Windows machine, we recommend to install `YARP` using [**robotology-superbuild**](https://github.com/robotology/robotology-superbuild). 
+`robotology-superbuild` can be installed either from source or using binaries with its dependencies installed using Package environment system called **Conda** following the [**installation procedure here**](https://github.com/robotology/robotology-superbuild/blob/master/doc/install-mambaforge.md#windows).  Subsequently, robotology-superbuild can be installed from source or using binaries by following the [**installation procedure here**](https://github.com/robotology/robotology-superbuild/blob/master/doc/conda-forge.md#binary-installation).
+
+While following the installation procedure using Conda-forge based dependencies, you create an environment within which the packages are installed. 
+So everytime, we open a new terminal we need to activate this environment in order to access the installed dependencies and installed packages from the `robotology-superbuild`.
+Note that, if you have followed a Source-based installation in [**installation procedure here**](https://github.com/robotology/robotology-superbuild/blob/master/doc/conda-forge.md#binary-installation), your environment needs to be activated using,
+```
+mamba activate robsub
+```
+while, if you have followed the binary installation procedure in [**installation procedure here**](https://github.com/robotology/robotology-superbuild/blob/master/doc/conda-forge.md#binary-installation), you have to use,
+```
+mamba activate robotologyenv
+```
+Note that this may not apply if you have installed `YARP` or `robotology-superbuild` following any other custom installation procedures.
+
+### Other dependencies
+Install `git` and `PkgConfig`.
+```
+mamba install -c conda-forge  git pkg-config
+```
+
+
+# OpenVR and yarp-openvr-trackers
+
+### Install OpenVR
+We install [**OpenVR**](https://github.com/ami-iit/openvr) using a custom fork from  [**ami-iit**](https://github.com/ami-iit) organization because of some custom patches from the original repository.
+We clone, build, and install  the repository from `fix_upstream` branch (which is the default branch of the fork).
+
+```
+git clone -b fix_upstream https://github.com/ami-iit/openvr
 cd openvr
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" -DCMAKE_INSTALL_PREFIX:PATH=<full-absolute-path-to-where-you-want-to-install-openvr> -DBUILD_SHARED=OFF ..
+cmake --build . --config Release
+cmake --install . --config Release
+```
+⚠️ **WARNING: It is recommended to mention a custom location for CMAKE_INSTALL_PREFIX that does not require administrator privileges.**
+⚠️ **WARNING: It is recommended to specify an absolute path to the install location in order to avoid strange, unresolved behaviors.**
+⚠️ **WARNING: It must be noted that the configuration tag `Visual Studio 17 2022` applies for a Visual Studio 2022 Installation. Previous versions of installation should use corresponding tags, such as `Visual Studio 16 2019` for a 2019 installation**
 
-# GNU/Linux and macOS
-cmake -S . -B build -GNinja -DCMAKE_INSTALL_PREFIX:PATH=/path/to/install -DCMAKE_BUILD_TYPE=Release
-cmake --build ./build/
-cmake --install ./build/
+**NOTE:** Since we are using the conda environment for installation, a common trick to avoid having to set new environment variables is just to install the CMake project directly in the environment, i.e. passing `-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX` on Linux/macOS or `-DCMAKE_INSTALL_PREFIX=%CONDA_PREFIX%\Library` on Windows.
 
-# Windows
-# Configure first with cmake-gui to detect the compiler
-cmake -S . -B build -DCMAKE_INSTALL_PREFIX:PATH=/path/to/install -DBUILD_SHARED_LIBS:BOOL=ON
-cmake --build build/ --config Release
-cmake --install build/ --config Release
+### Add OpenVR package to Package Configuration Path
+To have OpenVR installation to be identified by CMake, we  need to add it to the package configuration path.
+This can be done from the terminal after activating the `mamba` environment by,
+```
+set PKG_CONFIG_PATH=%PKG_CONFIG_PATH%;<path_to_openvr-install-location>/share/pkgconfig
+```
+To verify if the package is properly added to the path, we may run
+```
+pkg-config --list-all
+```
+and check for `openvr` in the list of packages displayed.
+
+
+### Install yarp-openvr-trackers
+We install [**yarp-openvr-trackers**](https://github.com/ami-iit/yarp-openvr-trackers)
+
+```
+git clone https://github.com/ami-iit/yarp-openvr-trackers.git
+cd yarp-openvr-trackers
+mkdir build
+cd build
+cmake -G "Visual Studio 17 2022" -DCMAKE_INSTALL_PREFIX:PATH=<full-absolute-path-to-where-you-want-to-install-yarp-openvr-trackers> ..
+cmake --build . --config Release
+cmake --install . --config Release
 ```
 
-Add the following to the `.bashrc`.
 
-```bash
-# GNU/Linux
-export OPENVR_DIR=/path/to/install
-export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$OPENVR_DIR/share/pkgconfig/
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OPENVR_DIR/lib
+### Adjust firewall settings for YARP
+In order to properly use YARP across the network, we have to provide firewall access to the YARP executables. To do this,
+- Go to **Control Panel -> System and Security -> Windows Defender Firewall -> Allowed apps**
+- You must be on `Firewall and network protection` page in the `Windows Security` section. Click on `Allow an app through firewall`
+- Click on `Change settings` to have administrator privilege.
+- Scroll down to find `yarp.exe` in the list and select `Details...->Network types...` and check all the network types (`Domain`, `Public`, and `Private`) and click `Ok`.
+- Then we may have to repeat the procedure for `yarpdev`, `yarp-server`, and `yarp-openvr-trackers` using `Allow another app...` button.
+
+## Checking the hardware setup
+- Place the base stations in desired locations and power them on.
+- Connect the Vive headset to the PC. (At this moment, connecting a headset is required to use SteamVR, in the future we need to find a workaround to avoid connecting the headset). It must be noted that the trackers pose are obtained relative to the Vive headset.
+- Ensure that PC connecting the headset is not connected to an external display/monitor. Otherwise, the display is extended into the headset and is not identified by SteamVR.  With only the headset connected to the PC, ensure that the displays are extended (**Display settings -> Extend the displays**).
+- Now, SteamVR should identify the base station and the headset.
+- Once the headset is properly identified, it prompts you to **update Bluetooth driver settings** and **enable direct display mode**. Follow the procedures.
+- The settings for the headset will be displayed. Go to **Settings->General** and disable **SteamVR home**.
+- We then have to follow a calibration procedure indicated by SteamVR to set the seated position and floor position.
+- In order to see what the user views through the headset, click on the menu button on SteamVR app and select **Display VR View**.
+- In order to pair the Vive trackers, select **Menu->Devices->Pair Controllers** and select the Vive tracker to follow the pairing procedure.
+- If the trackers are properly paired, you must see them through the headset.
+
+## Running yarp-openvr-trackers
+Now, in order to obtain the pose of the trackers through the YARP network, we will run the following commands.
+- Run `yarpserver` in a new `mamba` activated terminal.
+- Run `transformServer` in a new `mamba` activated terminal,
+``` sh
+yarpdev --device transformServer --ROS::enable_ros_publisher 0 --ROS::enable_ros_subscriber 0
 ```
+- Run `yarp-openvr-trackers`
+```
+yarp-openvr-trackers
+```
+
+To verify the transforms are being published,
+```
+yarp read ... /transformServer/transforms:o
+```
+This must display the name of the headset and the marker name along with the poses in quaternion and position format.
