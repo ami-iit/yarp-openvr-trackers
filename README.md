@@ -124,3 +124,24 @@ To verify the transforms are being published,
 yarp read ... /transformServer/transforms:o
 ```
 This must display the name of the headset and the marker name along with the poses in quaternion and position format.
+
+## Trackers roles 
+From SteamVR, it is possible to assign a "role" to a tracker via the "Manage Trackers" menu. 
+
+⚠️ **When using the ``HELD IN HAND`` role, the tracker orientation appears to be different with respect to all the other roles.**
+
+| Tracker roles                                                                                                                          | Orientation                                                                                                                            |
+|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| ![Screenshot 2022-04-04 180311](https://user-images.githubusercontent.com/18591940/164017403-64e224e9-86ed-4e07-8e77-f18ed30af44f.png) | ![Screenshot 2022-04-04 180331](https://user-images.githubusercontent.com/18591940/164017600-4c051ec8-2345-4ad1-8fdd-eb32cf955409.png) |
+| ![Screenshot 2022-04-04 180215](https://user-images.githubusercontent.com/18591940/164018203-34671fdb-ce8a-405e-8b0a-05ce1fe7c026.png) | ![Screenshot 2022-04-04 180402](https://user-images.githubusercontent.com/18591940/164018230-333bdb31-5d69-477d-a0b3-f058a665ccae.png) |
+
+⚠️ The orientation around the y axis (in green) depends on the Room setup and according to the relative yaw angle between the headset and the trackers. In the pictures above, the headset was "looking" at the trackers.
+
+In the images above, the trackers were positioned as follows: 
+![image](https://user-images.githubusercontent.com/18591940/164016928-7d15681c-3967-4cf0-8d54-88e3080a1267.png)
+
+
+
+
+
+
