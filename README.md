@@ -128,7 +128,7 @@ This must display the name of the headset and the marker name along with the pos
 ## Trackers roles 
 From SteamVR, it is possible to assign a "role" to a tracker via the "Manage Trackers" menu. 
 
-⚠️ **When using the ``HELD IN HAND`` profile, the tracker orientation appear to be different.**
+⚠️ **When using the ``HELD IN HAND`` profile, the tracker orientation appears to be different.**
 
 For example, with the trackers in the following position
 ![image](https://user-images.githubusercontent.com/18591940/164016928-7d15681c-3967-4cf0-8d54-88e3080a1267.png)
@@ -142,7 +142,7 @@ If instead, we change the role to ``HELD IN HAND``, the orientation changes
 
 ![Screenshot 2022-04-04 180402](https://user-images.githubusercontent.com/18591940/164018230-333bdb31-5d69-477d-a0b3-f058a665ccae.png)
 
-⚠️ The orientation around the y axis (in green) depends on the Room setup and according to the relative yaw angle between the headset and the trackers. I n the pictures above, the headset was "looking" at the trackers.
+⚠️ The orientation around the y axis (in green) depends on the Room setup and according to the relative yaw angle between the headset and the trackers. In the pictures above, the headset was "looking" at the trackers.
 
 
 
