@@ -137,7 +137,7 @@ if the trackers have role ``RIGHT ELBOW`` and ``LEFT ELBOW`` (or any other role 
 their measured orientation is as follows
 ![Screenshot 2022-04-04 180331](https://user-images.githubusercontent.com/18591940/164017600-4c051ec8-2345-4ad1-8fdd-eb32cf955409.png)
 
-If instead, we change the rolo to ``HELD IN HAND``, the orientation changes
+If instead, we change the role to ``HELD IN HAND``, the orientation changes
 ![Screenshot 2022-04-04 180215](https://user-images.githubusercontent.com/18591940/164018203-34671fdb-ce8a-405e-8b0a-05ce1fe7c026.png)
 
 ![Screenshot 2022-04-04 180402](https://user-images.githubusercontent.com/18591940/164018230-333bdb31-5d69-477d-a0b3-f058a665ccae.png)
