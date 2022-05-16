@@ -50,13 +50,15 @@ git clone -b fix_upstream https://github.com/ami-iit/openvr
 cd openvr
 mkdir build
 cd build
-cmake -G "Visual Studio 17 2022" -DCMAKE_INSTALL_PREFIX:PATH=<full-absolute-path-to-where-you-want-to-install-openvr> -DBUILD_SHARED=OFF ..
+cmake -G "Visual Studio 17 2022" -DCMAKE_INSTALL_PREFIX:PATH=<full-absolute-path-to-where-you-want-to-install-openvr> -DBUILD_SHARED=ON ..
 cmake --build . --config Release
 cmake --install . --config Release
 ```
 ⚠️ **WARNING: It is recommended to mention a custom location for CMAKE_INSTALL_PREFIX that does not require administrator privileges.**
 ⚠️ **WARNING: It is recommended to specify an absolute path to the install location in order to avoid strange, unresolved behaviors.**
 ⚠️ **WARNING: It must be noted that the configuration tag `Visual Studio 17 2022` applies for a Visual Studio 2022 Installation. Previous versions of installation should use corresponding tags, such as `Visual Studio 16 2019` for a 2019 installation**
+
+**NOTE:** The CMake option `BUILD_SHARED` needs to be set to `ON` on Windows, while on Linux/macOS it can be left to be `OFF`.
 
 **NOTE:** Since we are using the conda environment for installation, a common trick to avoid having to set new environment variables is just to install the CMake project directly in the environment, i.e. passing `-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX` on Linux/macOS or `-DCMAKE_INSTALL_PREFIX=%CONDA_PREFIX%\Library` on Windows.
 
