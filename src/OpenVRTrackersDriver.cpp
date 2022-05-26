@@ -302,17 +302,17 @@ openvr::DevicesManager::pose(const std::string& serialNumber) const
         return std::nullopt;
     }
 
+    vr::TrackedDevicePose_t poses[pImpl->devices.size()];
     vr::TrackedDevicePose_t pose;
-    vr::VRControllerState_t state;
 
     // Get the device pose
-    pImpl->vr->GetControllerStateWithPose(
+    pImpl->vr->GetDeviceToAbsoluteTrackingPose(
         vr::ETrackingUniverseOrigin(pImpl->origin),
-        pImpl->devices[serialNumber].index,
-        &state,
-        sizeof(state),
-        &pose);
+        0,
+        &poses[0],
+        pImpl->devices.size());
 
+    pose = poses[pImpl->devices[serialNumber].index];
     // Check whether the whole received state is valid
     if (pose.eTrackingResult
         != vr::ETrackingResult::TrackingResult_Running_OK) {
