@@ -57,7 +57,7 @@ class openvr::DevicesManager
 {
 public:
     DevicesManager(
-        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Seated);
+        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Standing);
     ~DevicesManager();
 
     bool valid() const;

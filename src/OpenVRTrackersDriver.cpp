@@ -302,7 +302,8 @@ openvr::DevicesManager::pose(const std::string& serialNumber) const
         return std::nullopt;
     }
 
-    vr::TrackedDevicePose_t poses[pImpl->devices.size()];
+    std::vector<vr::TrackedDevicePose_t> poses;
+    poses.resize(pImpl->devices.size());
     vr::TrackedDevicePose_t pose;
 
     // Get the device pose
