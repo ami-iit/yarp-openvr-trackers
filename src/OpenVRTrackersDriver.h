@@ -69,6 +69,7 @@ public:
     std::vector<std::string> managedDevices() const;
 
     TrackedDeviceType type(const std::string& serialNumber) const;
+    bool computePoses();
     std::optional<Pose> pose(const std::string& serialNumber) const;
 
     bool resetSeatedPosition();

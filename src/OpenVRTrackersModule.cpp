@@ -149,6 +149,8 @@ bool OpenVRTrackersModule::updateModule()
 {
     const auto lock = std::unique_lock(m_mutex);
 
+    // compute the poses
+    m_manager.computePoses();
     // Iterate over all the managed devices of the driver
     for (const auto& sn : m_manager.managedDevices()) {
 

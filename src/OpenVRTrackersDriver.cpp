@@ -36,6 +36,8 @@ public:
 
     mutable std::recursive_mutex mutex;
 
+    std::vector<vr::TrackedDevicePose_t> poses;
+
     static bool DeviceTypeIsSupported(const TrackedDeviceType type)
     {
         switch (type) {
@@ -66,6 +68,18 @@ public:
         // Convert to std::string
         return std::string(buffer);
     };
+
+    bool computePoses()
+    {
+        poses.resize(this->devices.size());
+        // Get the device pose
+        this->vr->GetDeviceToAbsoluteTrackingPose(
+        vr::ETrackingUniverseOrigin(this->origin),
+        0,
+        &poses[0],
+        this->devices.size());
+        return true;
+    }
 };
 
 // ==============
@@ -278,6 +292,11 @@ openvr::DevicesManager::type(const std::string& serialNumber) const
     return pImpl->devices[serialNumber].type;
 }
 
+bool openvr::DevicesManager::computePoses()
+{
+    return pImpl->computePoses();
+}
+
 std::optional<openvr::Pose>
 openvr::DevicesManager::pose(const std::string& serialNumber) const
 {
@@ -302,18 +321,9 @@ openvr::DevicesManager::pose(const std::string& serialNumber) const
         return std::nullopt;
     }
 
-    std::vector<vr::TrackedDevicePose_t> poses;
-    poses.resize(pImpl->devices.size());
     vr::TrackedDevicePose_t pose;
 
-    // Get the device pose
-    pImpl->vr->GetDeviceToAbsoluteTrackingPose(
-        vr::ETrackingUniverseOrigin(pImpl->origin),
-        0,
-        &poses[0],
-        pImpl->devices.size());
-
-    pose = poses[pImpl->devices[serialNumber].index];
+    pose = pImpl->poses[pImpl->devices[serialNumber].index];
     // Check whether the whole received state is valid
     if (pose.eTrackingResult
         != vr::ETrackingResult::TrackingResult_Running_OK) {
