@@ -110,7 +110,7 @@ bool openvr::DevicesManager::initialized() const
     return pImpl->vr && !std::string(pImpl->vr->GetRuntimeVersion()).empty();
 }
 
-bool openvr::DevicesManager::initialize()
+bool openvr::DevicesManager::initialize(std::string vrOrigin)
 {
     if (this->initialized()) {
         yError() << "Already initialized";
@@ -118,6 +118,11 @@ bool openvr::DevicesManager::initialize()
     }
 
     const auto lock = std::unique_lock(pImpl->mutex);
+
+    if(vrOrigin.compare("standing") == 0) {
+        pImpl->origin = TrackingUniverseOrigin::Standing;
+        yInfo() << "TrackingUniverseOrigin is changed to" << vrOrigin;
+    }
 
     // =================================
     // Detect and track existing devices

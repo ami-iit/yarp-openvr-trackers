@@ -57,11 +57,11 @@ class openvr::DevicesManager
 {
 public:
     DevicesManager(
-        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Standing);
+        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Seated);
     ~DevicesManager();
 
     bool valid() const;
-    bool initialize();
+    bool initialize(std::string vrOrigin = "seated");
     bool initialized() const;
 
     bool addDevice(const size_t index);

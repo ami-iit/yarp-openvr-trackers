@@ -18,6 +18,7 @@ namespace openvr_trackers_module {
     const std::string DefaultTfBaseFrameName = "openVR_origin";
     const std::string ModuleName = "OpenVRTrackersModule";
     const std::string LogPrefix = ModuleName + ":";
+    const std::string DefaultVrOrigin = "Seated";
 } // namespace openvr_trackers_module
 
 bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
@@ -87,6 +88,18 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
         tfRemote = rf.find("tfRemote").asString();
     }
 
+    // Try to find the "vrOrigin" entry
+    std::string vrOrigin;
+    if (!(rf.check("vrOrigin") && rf.find("vrOrigin").isString())) {
+        yInfo() << openvr_trackers_module::LogPrefix
+                << "Using default vrOrigin:"
+                << openvr_trackers_module::DefaultVrOrigin;
+        vrOrigin = openvr_trackers_module::DefaultVrOrigin;
+    }
+    else {
+        vrOrigin = rf.find("vrOrigin").asString();
+    }
+
     // Create configuration of the "transformClient" device
     yarp::os::Property tfClientCfg;
     tfClientCfg.put("device", "transformClient");
@@ -113,7 +126,7 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     m_sendBuffer.eye();
 
     // Initialize the OpenVR driver
-    if (!m_manager.initialize()) {
+    if (!m_manager.initialize(vrOrigin)) {
         yError() << openvr_trackers_module::LogPrefix
                  << "Failed to initialize the OpenVR devices manager.";
         return false;
@@ -202,6 +215,7 @@ bool OpenVRTrackersModule::updateModule()
 
             // Publish the transform
             m_tf->setTransform(tfNamePrefix + sn, m_baseFrame, m_sendBuffer);
+
         }
     }
 
