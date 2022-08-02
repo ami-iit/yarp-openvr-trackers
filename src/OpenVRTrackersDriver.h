@@ -60,7 +60,7 @@ public:
     ~DevicesManager();
 
     bool valid() const;
-    bool initialize(const std::string& vrOrigin = "Seated");
+    bool initialize(const TrackingUniverseOrigin& vrOrigin = TrackingUniverseOrigin::Seated);
     bool initialized() const;
 
     bool addDevice(const size_t index);

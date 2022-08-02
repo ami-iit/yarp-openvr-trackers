@@ -89,15 +89,31 @@ bool OpenVRTrackersModule::configure(yarp::os::ResourceFinder& rf)
     }
 
     // Try to find the "vrOrigin" entry
-    std::string vrOrigin;
+    std::string vrOriginString;
+    openvr::TrackingUniverseOrigin vrOrigin = openvr::TrackingUniverseOrigin::Seated;
     if (!(rf.check("vrOrigin") && rf.find("vrOrigin").isString())) {
         yInfo() << openvr_trackers_module::LogPrefix
                 << "Using default vrOrigin:"
                 << openvr_trackers_module::DefaultVrOrigin;
-        vrOrigin = openvr_trackers_module::DefaultVrOrigin;
+        vrOriginString = openvr_trackers_module::DefaultVrOrigin;
     }
     else {
-        vrOrigin = rf.find("vrOrigin").asString();
+        vrOriginString = rf.find("vrOrigin").asString();
+        std::transform(vrOriginString.begin(), vrOriginString.end(), vrOriginString.begin(), [](unsigned char c){ return std::tolower(c); });
+        if(vrOriginString == "seated") {
+            vrOrigin = openvr::TrackingUniverseOrigin::Seated;
+        }
+        else if(vrOriginString == "standing") {
+            vrOrigin = openvr::TrackingUniverseOrigin::Standing;
+        }
+        else if(vrOriginString == "raw") {
+            vrOrigin = openvr::TrackingUniverseOrigin::Raw;
+        }
+        else {
+            vrOrigin = openvr::TrackingUniverseOrigin::Seated;
+            yWarning() << openvr_trackers_module::LogPrefix
+                << "Invalid inserted vrOrigin value: " << vrOriginString << ", using the default value: seated" ;
+        }
     }
 
     // Create configuration of the "transformClient" device
