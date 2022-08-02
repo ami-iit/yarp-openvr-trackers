@@ -127,6 +127,15 @@ yarp read ... /transformServer/transforms:o
 ```
 This must display the name of the headset and the marker name along with the poses in quaternion and position format.
 
+### Note
+You can pass the "Tracking universe" as a parameter to `yarp-openvr-trackers` by running the executable with the option `--vrOrigin`. For example:
+
+```
+yarp-openvr-trackers --vrOrigin standing
+```
+
+The value `standing` can be chagnged to `seated` or `raw`, and it's **case insensitive**. The default origin `seated` will be used when no parameter is passed or when passing an invalid value.
+
 ## Trackers roles 
 From SteamVR, it is possible to assign a "role" to a tracker via the "Manage Trackers" menu. 
 
