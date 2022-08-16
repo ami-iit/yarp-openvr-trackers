@@ -56,12 +56,11 @@ struct openvr::TrackedDevice
 class openvr::DevicesManager
 {
 public:
-    DevicesManager(
-        const TrackingUniverseOrigin origin = TrackingUniverseOrigin::Seated);
+    DevicesManager();
     ~DevicesManager();
 
     bool valid() const;
-    bool initialize();
+    bool initialize(const TrackingUniverseOrigin& vrOrigin = TrackingUniverseOrigin::Seated);
     bool initialized() const;
 
     bool addDevice(const size_t index);
@@ -69,6 +68,7 @@ public:
     std::vector<std::string> managedDevices() const;
 
     TrackedDeviceType type(const std::string& serialNumber) const;
+    bool computePoses();
     std::optional<Pose> pose(const std::string& serialNumber) const;
 
     bool resetSeatedPosition();

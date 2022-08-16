@@ -22,6 +22,8 @@
 
 #include <string>
 #include <mutex>
+#include <cctype>
+#include <algorithm>
 
 class OpenVRTrackersModule final : public yarp::os::RFModule,
                                    public OpenVRTrackersCommands

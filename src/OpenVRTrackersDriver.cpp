@@ -36,6 +36,8 @@ public:
 
     mutable std::recursive_mutex mutex;
 
+    std::vector<vr::TrackedDevicePose_t> poses;
+
     static bool DeviceTypeIsSupported(const TrackedDeviceType type)
     {
         switch (type) {
@@ -66,16 +68,27 @@ public:
         // Convert to std::string
         return std::string(buffer);
     };
+
+    bool computePoses()
+    {
+        poses.resize(this->devices.size());
+        // Get the device pose
+        this->vr->GetDeviceToAbsoluteTrackingPose(
+        vr::ETrackingUniverseOrigin(this->origin),
+        0,
+        &poses[0],
+        this->devices.size());
+        return true;
+    }
 };
 
 // ==============
 // DevicesManager
 // ==============
 
-openvr::DevicesManager::DevicesManager(const TrackingUniverseOrigin origin)
+openvr::DevicesManager::DevicesManager()
     : pImpl{std::make_unique<Impl>()}
 {
-    pImpl->origin = origin;
 }
 
 openvr::DevicesManager::~DevicesManager()
@@ -96,7 +109,7 @@ bool openvr::DevicesManager::initialized() const
     return pImpl->vr && !std::string(pImpl->vr->GetRuntimeVersion()).empty();
 }
 
-bool openvr::DevicesManager::initialize()
+bool openvr::DevicesManager::initialize(const TrackingUniverseOrigin& vrOrigin)
 {
     if (this->initialized()) {
         yError() << "Already initialized";
@@ -104,6 +117,8 @@ bool openvr::DevicesManager::initialize()
     }
 
     const auto lock = std::unique_lock(pImpl->mutex);
+
+        pImpl->origin = vrOrigin;
 
     // =================================
     // Detect and track existing devices
@@ -278,6 +293,11 @@ openvr::DevicesManager::type(const std::string& serialNumber) const
     return pImpl->devices[serialNumber].type;
 }
 
+bool openvr::DevicesManager::computePoses()
+{
+    return pImpl->computePoses();
+}
+
 std::optional<openvr::Pose>
 openvr::DevicesManager::pose(const std::string& serialNumber) const
 {
@@ -303,16 +323,8 @@ openvr::DevicesManager::pose(const std::string& serialNumber) const
     }
 
     vr::TrackedDevicePose_t pose;
-    vr::VRControllerState_t state;
 
-    // Get the device pose
-    pImpl->vr->GetControllerStateWithPose(
-        vr::ETrackingUniverseOrigin(pImpl->origin),
-        pImpl->devices[serialNumber].index,
-        &state,
-        sizeof(state),
-        &pose);
-
+    pose = pImpl->poses[pImpl->devices[serialNumber].index];
     // Check whether the whole received state is valid
     if (pose.eTrackingResult
         != vr::ETrackingResult::TrackingResult_Running_OK) {

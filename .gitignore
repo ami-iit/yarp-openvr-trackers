@@ -12,3 +12,7 @@ build*
 
 # PyCharm
 .idea*
+
+# KDevelop
+**/.kdev4/
+**/*.kdev4
